@@ -1,0 +1,7 @@
+llama.cpp/
+.venv/
+*.csv
+*.txt
+*.gguf
+codebase/
+index/

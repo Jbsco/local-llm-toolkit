@@ -13,7 +13,7 @@ This repository hosts a number of scripts and CLI tools to:
 - **CLI Interface**: The CLI interface is provided by interacting with a bash script which accepts arguments and a prompt. Python modules are invoked to perform index queries and invoke the compiled Llama.cpp environment.
 - **Flexible Model Selection**: Different GGUF models may be selected via CLI arguments. These are applied separately from the embedding model used for querying the index.
 - **Scale-able Arguments**: When invoking Llama.cpp, several supported arguments are retained, such as LLM model, GPU thread count, and context size. Additional arguments to control index queries are also supported in the CLI layer.
-- **Tested on AMD Hardware**: Llama.cpp was compiled on a moderate performance desktop with an AMD 7700X CPU, 7900GRE 16GB VRAM GPU, and 64GB RAM. Subjective: AMD hardware appears to involve a more restrictive installation, therefore this process may be easier or more compatible if using nVidia hardware.
+- **Tested on AMD Hardware**: Llama.cpp was compiled on a moderate performance Linux desktop with an AMD 7700X CPU, 7900GRE 16GB VRAM GPU, and 64GB RAM. Subjective: AMD hardware appears to involve a more restrictive installation, therefore this process may be easier or more compatible if using nVidia hardware.
 
 ## Background
 ...TODO
@@ -21,6 +21,17 @@ This repository hosts a number of scripts and CLI tools to:
 ## Installation & Setup
 ...TODO
 
+...TODO Llama.cpp may require Python 3.10, as some module versions requested by Llama.cpp may not be compatible with Python 3.13.
+```
+sudo pacman -S python310
+```
+
+...TODO Setup a Python virtual environment.
+```
+python3.10 -m venv .venv
+source .venv/bin/activate
+```
+   
 Clone the Llama.cpp repository:
 ```
 git clone https://github.com/ggerganov/llama.cpp
@@ -80,7 +91,7 @@ Example invocation:
 ...TODO
 
 ## Future Enhancements
-- ...TODO
+- ...TODO LoRA fine-tuning
 
 ## References
 1. ...TODO

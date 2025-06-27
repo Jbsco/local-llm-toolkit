@@ -12,8 +12,7 @@ from chromadb.config import Settings as ChromaSettings
 
 # Helper to recursively read Ada + Python source files
 def read_code_files(root_dir: str) -> List[str]:
-    exts = ['.adb', '.ads', '.py', '.yaml', '.yml', '.md']
-    # exts = ['.py']
+    exts = ['.adb', '.ads', '.py', '.yaml', '.yml', '.md', '.tex', '.sh', '.dockerfile', '.gpr', '.cpp', '.h']
     file_texts = []
 
     for ext in exts:

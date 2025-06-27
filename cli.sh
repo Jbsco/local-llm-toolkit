@@ -5,7 +5,7 @@ PROMPT=""
 TOP_K=0
 GPU_LAYERS=32
 CTX_SIZE=4096
-TOKENS=512
+TOKENS=-1
 VECTOR_DB_DIR="./index/llama_index"   # where your Chroma/FAISS index lives
 DEBUG=false
 

@@ -14,7 +14,9 @@ app = typer.Typer()
 
 def load_vector_index(vectordb_llama: str, vectordb_chroma: str) -> VectorStoreIndex:
     # Initialize local embedding model wrapper for llama_index
-    hf_embed = HuggingFaceEmbeddings(model_name="thenlper/gte-large")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/instructor-base")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/gte-large")
+    hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/bge-large-en-v1.5")
     embed_model = LangchainEmbedding(hf_embed)
 
     # Create local persistent Chroma client
@@ -49,10 +51,14 @@ def retrieve_docs_from_chroma(vector_store, query, topk=3):
 
     # Compute embedding for query text
     # Initialize local embedding model wrapper for llama_index
-    #hf_embed = HuggingFaceEmbeddings(model_name="hkunlp/instructor-base")
-    hf_embed = HuggingFaceEmbeddings(model_name="thenlper/gte-large")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/instructor-base")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/gte-large")
+    hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/bge-large-en-v1.5")
     embed_model = LangchainEmbedding(hf_embed)
-    embedding = hf_embed.embed_documents([query])[0]
+
+    # Apply query embedding with BAAI recommended instruction:
+    formatted_query = f"Represent this sentence for searching relevant passages: {query}"
+    embedding = hf_embed.embed_documents([formatted_query])[0]
 
     results = vector_store._collection.query(
         query_embeddings=[embedding],
@@ -62,19 +68,24 @@ def retrieve_docs_from_chroma(vector_store, query, topk=3):
 
     # results['documents'] is List[List[str]] (one list per query)
     docs_nested = results.get('documents', [])
+    metas_nested = results.get("metadatas", [])
     if not docs_nested or not docs_nested[0]:
         return []
 
-    # Flatten the first query's results (assuming single query)
-    docs = [doc for doc in docs_nested[0] if isinstance(doc, str)]
-    return docs
+    docs = docs_nested[0]
+    metas = metas_nested[0]
 
-def construct_prompt_with_context(query: str, docs: list[str]) -> str:
+    # Return a list of tuples: (filename, document)
+    return [(meta.get("source_file", "unknown"), doc) for meta, doc in zip(metas, docs)]
+
+def construct_prompt_with_context(query: str, docs: list[tuple[str, str]]) -> str:
     if not docs:
         context_text = ""
     else:
-        context_text = "\n\n".join(docs)
-    return f"Context:\n{context_text}\nQuestion:\n{query}\nAnswer:"
+        context_text = "\n\n".join(
+            f"Filename: {filename}\nContext:\n{doc}" for filename, doc in docs
+        )
+    return f"Context:\n{context_text}\n\nQuestion:\n{query}\nAnswer:"
 
 @app.command()
 def main(

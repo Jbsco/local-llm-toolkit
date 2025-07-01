@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 from tqdm import tqdm
 
 from llama_index.core import StorageContext, SimpleDirectoryReader, Settings, Document, VectorStoreIndex
@@ -11,16 +11,18 @@ import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 # Helper to recursively read Ada + Python source files
-def read_code_files(root_dir: str) -> List[str]:
+def read_code_files(root_dir: str) -> List[Tuple[Path, str]]:
     exts = ['.adb', '.ads', '.py', '.yaml', '.yml', '.md', '.tex', '.sh', '.dockerfile', '.gpr', '.cpp', '.h']
     file_texts = []
 
     for ext in exts:
         for path in Path(root_dir).rglob(f"*{ext}"):
-            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-                text = f.read()
-                # Optionally do preprocessing here (strip comments etc)
-                file_texts.append(text)
+            try:
+                with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                    text = f.read()
+                    file_texts.append((path, text))  # <-- return (path, content)
+            except Exception as e:
+                print(f"Could not read {path}: {e}")
     return file_texts
 
 def main():
@@ -34,12 +36,16 @@ def main():
 
     # Convert to LlamaIndex Documents with progress bar
     documents = []
-    for i, text in enumerate(tqdm(file_texts, desc="Wrapping files as Documents")):
-        documents.append(Document(text=text, metadata={"source_file": f"file_{i}"}))
+    for path, text in tqdm(file_texts, desc="Wrapping files as Documents"):
+        documents.append(Document(
+            text=text,
+            metadata={"source_file": str(path)}  # use path.name for filename only
+        ))
 
     # Wrap the HF embedding with Langchain-compatible wrapper
     # hf_embed = HuggingFaceEmbeddings(model_name="hkunlp/instructor-base")
-    hf_embed = HuggingFaceEmbeddings(model_name="thenlper/gte-large")
+    # hf_embed = HuggingFaceEmbeddings(model_name="thenlper/gte-large")
+    hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/bge-large-en-v1.5")
     embed_model = LangchainEmbedding(hf_embed)
 
     # Service context from embeddings

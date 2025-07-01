@@ -8,8 +8,8 @@ DIR=$1
 #   "models/Q5/mistral-7b-instruct-v0.1.Q5_K_M.gguf"
 # )
 MODELS=(models/"$DIR"/*.gguf)
-GPU_LAYERS_VALUES=(24 36 48 60 72 84 96)  # adjust as needed based on VRAM headroom
-OUTPUT_CSV="benchmark_results_24:12:96_${DIR}_models_$(date +%H:%M:%S).csv"
+GPU_LAYERS_VALUES=(28 30 32 34 36 38 40 42 44)  # adjust as needed based on VRAM headroom
+OUTPUT_CSV="benchmark_32B_results_28:2:44_${DIR}_models_$(date +%H:%M:%S).csv"
 LLAMA_BIN="./llama.cpp/build/bin/llama-cli"
 TOKENS=512
 BATCH_SIZE=4096

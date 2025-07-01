@@ -5,3 +5,5 @@ llama.cpp/
 *.gguf
 codebase/
 index/
+*.asv
+*.kate-swp

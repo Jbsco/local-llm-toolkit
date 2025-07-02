@@ -6,6 +6,7 @@ from datasets import load_dataset
 from peft import LoraConfig, get_peft_model, TaskType
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
 from tqdm import tqdm
+from torch.cuda.amp import autocast
 
 # === CONFIG ===
 MODEL_NAME = "models/Qwen2.5-Coder-14B-Instruct"
@@ -38,7 +39,7 @@ with init_empty_weights():
 
 device_map = infer_auto_device_map(
     base_model,
-    max_memory={0: "10GiB", "cpu": "48GiB"},
+    max_memory={0: "6GiB", "cpu": "48GiB"},
     no_split_module_classes=["QWenBlock"]
 )
 
@@ -116,14 +117,13 @@ optimizer.zero_grad()
 
 for epoch in range(999):
     for step, batch in enumerate(tqdm(train_loader)):
-        batch = {k: move_to_device(v, device) for k, v in batch.items()}
+        batch = {k: v.to(torch.float16) if v.dtype.is_floating_point else v for k, v in batch.items()}
+        # batch = {k: v.to(model.device) for k, v in batch.items()}
         print({k: v.shape for k, v in batch.items()})
 
-        for k, v in batch.items():
-            if torch.is_floating_point(v):
-                batch[k] = v.to(dtype=torch.float16)
-
-        outputs = model(**batch)
+        torch.cuda.empty_cache()
+        with autocast(dtype=torch.float16):
+            outputs = model(**batch)
         loss = outputs.loss / GRAD_ACCUM_STEPS
         loss.backward()
         accum_loss += loss.item()

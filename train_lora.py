@@ -91,6 +91,14 @@ train_loader = DataLoader(tokenized_dset, batch_size=BATCH_SIZE, shuffle=True)
 optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=100)
 
+def move_to_device(x, device):
+    if isinstance(x, torch.Tensor):
+        return x.to(device)
+    elif isinstance(x, list):
+        return [move_to_device(i, device) for i in x]
+    else:
+        return x
+
 # === TRAIN LOOP ===
 global_step = 0
 accum_loss = 0.0
@@ -98,7 +106,8 @@ optimizer.zero_grad()
 
 for epoch in range(999):
     for step, batch in enumerate(tqdm(train_loader)):
-        batch = {k: v.to(device) for k, v in batch.items()}
+        batch = {k: move_to_device(v, device) for k, v in batch.items()}
+
         outputs = model(**batch)
         loss = outputs.loss / GRAD_ACCUM_STEPS
         loss.backward()

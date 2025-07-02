@@ -1,7 +1,7 @@
 import os
 import torch
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, default_data_collator
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model, TaskType
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
@@ -10,7 +10,7 @@ from tqdm import tqdm
 # === CONFIG ===
 MODEL_NAME = "models/Qwen2.5-Coder-14B-Instruct"
 OUTPUT_DIR = "models/Qwen2.5-Coder-14b-Instruct-Adamant"
-BLOCK_SIZE = 512
+BLOCK_SIZE = 2048
 BATCH_SIZE = 1
 GRAD_ACCUM_STEPS = 8
 LEARNING_RATE = 2e-5
@@ -77,6 +77,8 @@ def tokenize(example):
         padding="max_length",
         truncation=True,
         max_length=BLOCK_SIZE,
+        return_attention_mask=True,
+        return_tensors=None,  # Let Datasets keep native format
     )
     tokenized["labels"] = tokenized["input_ids"].copy()
     return tokenized
@@ -88,7 +90,12 @@ tokenized_dset = dataset.map(
     num_proc=4
 )
 
-train_loader = DataLoader(tokenized_dset, batch_size=BATCH_SIZE, shuffle=True)
+train_loader = DataLoader(
+    tokenized_dset,
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    collate_fn=default_data_collator
+)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=100)
@@ -110,6 +117,11 @@ optimizer.zero_grad()
 for epoch in range(999):
     for step, batch in enumerate(tqdm(train_loader)):
         batch = {k: move_to_device(v, device) for k, v in batch.items()}
+        print({k: v.shape for k, v in batch.items()})
+
+        for k, v in batch.items():
+            if torch.is_floating_point(v):
+                batch[k] = v.to(dtype=torch.float16)
 
         outputs = model(**batch)
         loss = outputs.loss / GRAD_ACCUM_STEPS

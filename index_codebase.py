@@ -43,8 +43,8 @@ def main():
         ))
 
     # Wrap the HF embedding with Langchain-compatible wrapper
-    # hf_embed = HuggingFaceEmbeddings(model_name="hkunlp/instructor-base")
-    # hf_embed = HuggingFaceEmbeddings(model_name="thenlper/gte-large")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/instructor-base")
+    # hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/gte-large")
     hf_embed = HuggingFaceEmbeddings(model_name="models/embedding/bge-large-en-v1.5")
     embed_model = LangchainEmbedding(hf_embed)
 

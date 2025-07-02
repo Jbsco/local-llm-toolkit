@@ -85,7 +85,7 @@ def construct_prompt_with_context(query: str, docs: list[tuple[str, str]]) -> st
         context_text = "\n\n".join(
             f"Filename: {filename}\nContext:\n{doc}" for filename, doc in docs
         )
-    return f"Context:\n{context_text}\n\nQuestion:\n{query}\nAnswer:"
+    return f"<|context|>\n{context_text}\n<|user|>\n{query}\n<|assistant|>\n"
 
 @app.command()
 def main(
@@ -96,7 +96,8 @@ def main(
     ctxsize: int = typer.Option(4096, help="Context size"),
     npredict: int = typer.Option(512, help="Tokens to predict"),
     vectordb: str = typer.Option("index/llama_index", help="Vector DB directory"),
-    debug: bool = typer.Option(False, "--debug", help="Enable debug mode.")
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode."),
+    interactive: bool = typer.Option(False, "--interactive", help="Enable interactive mode.")
 ):
     # Load vector index
     index, vector_store = load_vector_index(vectordb, "index/chroma")
@@ -117,31 +118,39 @@ def main(
         "--ctx-size", str(ctxsize),
         "--n-predict", str(npredict),
         "--color",
-        "--jinja",
+        # "--jinja",
         "-st",
-        "--prompt", full_prompt,
         "--no-display-prompt",
-    ]
+    ] + (["-i"] if interactive else ["--prompt", full_prompt])
 
     if debug:
         print("[DEBUG] Running llama.cpp inference (live output):")
         print("[DEBUG] Full prompt:")
         print(full_prompt)
 
-        print("[DEBUG] Captured output:")
-        process = subprocess.Popen(llama_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        process = subprocess.Popen(
+            llama_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding='utf-8',
+            errors='replace'  # safe decoding of output
+        )
         full_output = ""
         for line in process.stdout:
             print(line, end="")  # live echo
             full_output += line
-
         process.wait()
 
     else:
         # Quieter mode, just the prompt and response
-        # print("[DEBUG] Running llama.cpp inference silently.")
-        # print(" ".join(llama_cmd))  # optionally log command
-        result = subprocess.run(llama_cmd, capture_output=True, text=True)
+        result = subprocess.run(
+            llama_cmd,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace'  # safe decoding here too
+        )
         print(result.stdout)
 
 if __name__ == "__main__":

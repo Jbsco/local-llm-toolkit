@@ -8,6 +8,7 @@ CTX_SIZE=4096
 TOKENS=-1
 VECTOR_DB_DIR="./index/llama_index"   # where your Chroma/FAISS index lives
 DEBUG=false
+INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -19,13 +20,15 @@ while [[ $# -gt 0 ]]; do
         --tokens) TOKENS="$2"; shift 2;;
         --vectordb) VECTOR_DB_DIR="$2"; shift 2;;
         --debug) DEBUG=true; shift;;
+        -i|--interactive) INTERACTIVE=true; shift;;
         *) echo "Unknown arg: $1"; exit 1;;
     esac
 done
 
 if [[ -z "$PROMPT" ]]; then
-  echo "Error: --prompt is required"
-  exit 1
+  echo "No prompt, running in interactive mode with topk = 0."
+  TOP_K=0
+  INTERACTIVE=true
 fi
 
 echo "Using model: $MODEL"
@@ -48,7 +51,8 @@ python3 query_engine.py \
   --ctxsize "$CTX_SIZE" \
   --npredict "$TOKENS" \
   --vectordb "$VECTOR_DB_DIR" \
-  $( [[ "$DEBUG" == true ]] && echo "--debug" )
+  $( [[ "$DEBUG" == true ]] && echo "--debug" ) \
+  $( [[ "$INTERACTIVE" == true ]] && echo "--interactive" )
 #
 # VRAM_AFTER=$(rocm-smi --showmeminfo vram | grep "Used" | awk '{print $(NF)/1e+06}')
 #

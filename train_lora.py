@@ -22,6 +22,8 @@ LORA_DROPOUT = 0.05
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+torch.cuda.empty_cache()
+
 # === LOAD TOKENIZER ===
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
@@ -36,7 +38,7 @@ with init_empty_weights():
 
 device_map = infer_auto_device_map(
     base_model,
-    max_memory={0: "14GiB", "cpu": "48GiB"},
+    max_memory={0: "10GiB", "cpu": "48GiB"},
     no_split_module_classes=["QWenBlock"]
 )
 

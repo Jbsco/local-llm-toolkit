@@ -95,7 +95,8 @@ def move_to_device(x, device):
     if isinstance(x, torch.Tensor):
         return x.to(device)
     elif isinstance(x, list):
-        return [move_to_device(i, device) for i in x]
+        # convert list to tensor before moving to device
+        return torch.tensor(x).to(device)
     else:
         return x
 

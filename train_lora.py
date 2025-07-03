@@ -1,45 +1,44 @@
 import os
 import torch
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, AutoModelForCausalLM, default_data_collator
+from transformers import AutoTokenizer, AutoModelForCausalLM, default_data_collator, AutoConfig
 from datasets import load_dataset
 from peft import LoraConfig, get_peft_model, TaskType
 from accelerate import init_empty_weights, infer_auto_device_map, load_checkpoint_and_dispatch
 from tqdm import tqdm
-from torch.cuda.amp import autocast
+# from torch.cuda.amp import autocast
 
 # === CONFIG ===
-MODEL_NAME = "models/Qwen2.5-Coder-14B-Instruct"
-OUTPUT_DIR = "models/Qwen2.5-Coder-14b-Instruct-Adamant"
-BLOCK_SIZE = 2048
+MODEL_NAME = "models/Qwen2.5-Coder-7B-Instruct"
+OUTPUT_DIR = "models/Qwen2.5-Coder-7b-Instruct-Adamant"
+BLOCK_SIZE = 512
 BATCH_SIZE = 1
 GRAD_ACCUM_STEPS = 8
 LEARNING_RATE = 2e-5
 NUM_TRAIN_STEPS = 1000
 SAVE_EVERY = 200
-LORA_RANK = 64
+LORA_RANK = 32
 LORA_ALPHA = 16
 LORA_DROPOUT = 0.05
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
-torch.cuda.empty_cache()
+# torch.cuda.empty_cache()
 
 # === LOAD TOKENIZER ===
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 
 # === LOAD MODEL ===
+config = AutoConfig.from_pretrained(MODEL_NAME, trust_remote_code=True)
+
 with init_empty_weights():
-    base_model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME,
-        torch_dtype=torch.float16,
-        trust_remote_code=True
-    )
+    base_model = AutoModelForCausalLM.from_config(config, trust_remote_code=True)
 
 device_map = infer_auto_device_map(
     base_model,
-    max_memory={0: "6GiB", "cpu": "48GiB"},
+    max_memory={"cpu": "32GiB"},
     no_split_module_classes=["QWenBlock"]
 )
 
@@ -51,7 +50,19 @@ base_model = load_checkpoint_and_dispatch(
     offload_state_dict=True
 )
 
-base_model.gradient_checkpointing_enable()
+# device_map = infer_auto_device_map(
+#     base_model,
+#     max_memory={0: "6GiB", "cpu": "48GiB"},
+#     no_split_module_classes=["QWenBlock"]
+# )
+#
+# base_model = load_checkpoint_and_dispatch(
+#     base_model,
+#     MODEL_NAME,
+#     device_map=device_map,
+#     offload_folder="offload",
+#     offload_state_dict=True
+# )
 
 lora_config = LoraConfig(
     r=LORA_RANK,
@@ -66,6 +77,8 @@ lora_config = LoraConfig(
 )
 
 model = get_peft_model(base_model, lora_config)
+base_model.gradient_checkpointing_disable()
+model.config.use_cache = True
 model.train()
 
 # === LOAD DATASET ===
@@ -88,7 +101,7 @@ tokenized_dset = dataset.map(
     tokenize,
     batched=False,
     remove_columns=["text", "path"],
-    num_proc=4
+    num_proc=1
 )
 
 train_loader = DataLoader(
@@ -101,14 +114,14 @@ train_loader = DataLoader(
 optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=100)
 
-def move_to_device(x, device):
-    if isinstance(x, torch.Tensor):
-        return x.to(device)
-    elif isinstance(x, list):
-        # convert list to tensor before moving to device
-        return torch.tensor(x).to(device)
-    else:
-        return x
+# def move_to_device(x, device):
+#     if isinstance(x, torch.Tensor):
+#         return x.to(device)
+#     elif isinstance(x, list):
+#         # convert list to tensor before moving to device
+#         return torch.tensor(x).to(device)
+#     else:
+#         return x
 
 # === TRAIN LOOP ===
 global_step = 0
@@ -117,13 +130,21 @@ optimizer.zero_grad()
 
 for epoch in range(999):
     for step, batch in enumerate(tqdm(train_loader)):
-        batch = {k: v.to(torch.float16) if v.dtype.is_floating_point else v for k, v in batch.items()}
+        # batch = {k: v.to(torch.float16) if v.dtype.is_floating_point else v for k, v in batch.items()}
         # batch = {k: v.to(model.device) for k, v in batch.items()}
+
+        # Move to CPU & float32
+        batch = {
+            k: v.to(dtype=torch.bfloat16) if isinstance(v, torch.Tensor) and v.dtype.is_floating_point else v
+            for k, v in batch.items()
+        }
+
         print({k: v.shape for k, v in batch.items()})
 
-        torch.cuda.empty_cache()
-        with autocast(dtype=torch.float16):
-            outputs = model(**batch)
+        # torch.cuda.empty_cache()
+        # with autocast(device_type="cuda", dtype=torch.float16):
+            # outputs = model(**batch)
+        outputs = model(**batch)
         loss = outputs.loss / GRAD_ACCUM_STEPS
         loss.backward()
         accum_loss += loss.item()

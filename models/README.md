@@ -1,0 +1,1 @@
+GGUF models may be stored here. If using the LoRA training script, the base model repository should be used instead of the GGUF file. The LoRA training output will be unquantized, in `safetensors` format.

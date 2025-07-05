@@ -5,8 +5,8 @@ This repository hosts a number of scripts and CLI tools to:
 - Indexing for Context (IfC) within a locally hosted codebase using ChromaDB
 - Provide a user-specified number of relevant files as context with prompts
 - Output results in a parsable manner
-- (TBD) Provide scripts/tools to perform Low-Rank Adaptation (LoRA) fine-tuning of the indexed codebase on collected models
-- (TBD) Improve quality of results by applying IfC and LoRA simultaneously
+- Provide scripts/tools to perform Low-Rank Adaptation (LoRA) fine-tuning of the indexed codebase on collected models
+- Improve quality of results by applying IfC and LoRA simultaneously
 
 ## Features
 - **Indexing for Context (IFC)**: By running the Python indexing module, a ChromaDB index is produced which is queried by the model invoker script to pull relevant context for the prompt.
@@ -91,6 +91,12 @@ Set the model and output in the `train_lora.py` script. Start training:
 ```
 accelerate launch train_lora.py
 ```
+Merge the base model and adapter, and create the `*.gguf` file(s):
+```
+python3 merge_lora_adapter.py
+./merge_quantize_gguf.sh
+```
+The model may be used if these processes completed successfully.
 
 Example invocation:
 ```
